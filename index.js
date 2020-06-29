@@ -86,7 +86,7 @@ function createWindow() {
         height: height,
         webPreferences: {
             nodeIntegration: false,
-            devTools: !app.isPackaged,
+            devTools: false,
             sandbox: true
         }
     })
