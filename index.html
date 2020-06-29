@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Fixinator</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none';script-src 'sha256-aczgh8GVXIDjB6B1do7F8hj75X0JSgVvkRd1p/pyAnM=';img-src 'self';connect-src http://127.0.0.1:8584; style-src 'sha256-kTHfUlJxUem3XDbILyjo4YyEZulVUuPMuxljR5Ur3+U='">
+
+    <style>
+      body {
+        background-color: #212529;
+        color: white;
+        font-family: "SF Pro", "Helvetica Neue",Roboto,Helvetica,Arial,sans-serif;;
+      }
+      #status { font-size: 8px; color:#212529; }
+      #main {
+        max-width: 500px;
+        margin: auto;
+        text-align: center;
+      }
+      @keyframes pulse_animation {
+          0% { transform: scale(1); }
+          30% { transform: scale(1); }
+          40% { transform: scale(1.08); }
+          50% { transform: scale(1); }
+          60% { transform: scale(1); }
+          70% { transform: scale(1.05); }
+          80% { transform: scale(1); }
+          100% { transform: scale(1); }
+      }
+      #icon {
+        max-width: 80%;
+        animation-name: pulse_animation;
+        animation-duration: 5000ms;
+        transform-origin:70% 70%;
+        animation-iteration-count: infinite;
+        animation-timing-function: linear;
+      }
+      /* https://github.com/tobiasahlin/SpinKit */
+      .spinner {
+        width: 40px;
+        height: 40px;
+        margin: 50px auto;
+        background-color: #fbeeca;
+
+        border-radius: 100%;  
+        -webkit-animation: sk-scaleout 1.0s infinite ease-in-out;
+        animation: sk-scaleout 1.0s infinite ease-in-out;
+      }
+
+      @-webkit-keyframes sk-scaleout {
+        0% { -webkit-transform: scale(0) }
+        100% {
+          -webkit-transform: scale(1.0);
+          opacity: 0;
+        }
+      }
+
+      @keyframes sk-scaleout {
+        0% { 
+          -webkit-transform: scale(0);
+          transform: scale(0);
+        } 100% {
+          -webkit-transform: scale(1.0);
+          transform: scale(1.0);
+          opacity: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="main">
+      <img src="boot/icon.png" id="icon">
+      <p id="message">Fixinator is Starting Up...</p>
+      <div class="spinner"></div>
+      <div id="status"></div>
+    </div>
+  </body>
+
+<script>
+// Ping the server until it starts, once it does, open it
+      
+var commandbox_port = window.location.search;
+commandbox_port = commandbox_port.replace("?port=", "");
+var pingUrl = `http://127.0.0.1:${commandbox_port}`;
+var errorCount = 0;
+setInterval(ping, 1000);
+
+function ping() {
+  if (errorCount > 600) {
+    //shouldnt take longer than 10min, something wrong
+    document.body.innerText="Unable to start commandbox";
+    return;
+  }
+  fetch(pingUrl).then(function(response) {
+    if (response.status == 200) {
+      window.location.href = pingUrl;
+    } else {
+      errorCount++;
+      setStatusMessage(errorCount + " response status " + response.status);
+    }
+  }).catch(function(err) {
+    errorCount++;
+    setStatusMessage(errorCount + "");
+    //console.log(err);
+  });
+}
+function setStatusMessage(msg) {
+  document.getElementById("status").innerText = msg;
+}
+</script>
+</html>

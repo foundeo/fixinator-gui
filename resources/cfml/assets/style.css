@@ -1,0 +1,159 @@
+body { font-family: "Roboto-Light","SF Pro", "Helvetica Neue",Roboto,Helvetica,Arial,sans-serif; }
+body strong { font-family: "Roboto"; }
+#main { margin-top: 60px;  }
+.navbar-collapse ul { text-align: right; }
+.bg-brand { 
+	background: #fbeeca; 
+	background: linear-gradient(0deg, rgba(251,238,202,1) 50%, rgba(253,248,234,1) 400%) !important;
+}
+.subnav { background-color:#2F312A; padding: 10px 40px; color:#fbeeca; }
+.subnav .row { align-items: baseline; }
+.subnav .btn-group { margin: 0px; }
+
+.btn-outline-brand {
+	border-color: #fbeeca;
+	color: #fbeeca;
+}
+
+.row.props {
+	margin-bottom: 6px;
+}
+
+.card.bg-brand > a {
+	color: #2F312A;
+}
+.card.bg-brand > a:hover { text-decoration: none; }
+
+header nav.navbar { z-index: 100; padding:0px; }
+header img { margin:0px 8px; }
+header a.navbar-brand { 
+	margin-left: 10px; 
+	padding: 0px; 
+	font-size:1.5rem; 
+	color: #414040 !important; 
+	font-weight: 200;
+}
+
+.catDescription { font-size: 1.5rem; font-weight:100;  }
+
+.issuePath { color: gray; font-family: monospace; font-size: 1.1rem; }
+
+.progress { height: 10px; }
+
+.hidden { display: none; }
+
+.code-context {
+	margin: 8px 0px;
+	background-color: #f4f4f4;
+	
+}
+.code-context .col-11 {
+	border-left: 2px solid silver;
+	padding-left: 0.3rem;
+}
+.code-context .col-1 {
+	padding-right: 0.3rem;
+}
+.code-context .line pre {
+	color: #e91e63;
+}
+.code-context pre {
+	margin: 0;
+	padding: 0.3rem;
+}
+
+.fix-select {
+	font-family: monospace;
+}
+
+
+
+.acediff .acediff__wrap {
+	position: relative;
+	top: auto;
+	bottom: auto;
+	height: 400px;
+}
+.ace_tooltip {
+	padding: 12px;
+}
+
+.acediff__diffLine {
+	background-color: #816109;
+	border-color: #816109;
+}
+.acediff__connector {
+	fill: #816109;
+	stroke: #816109;
+}
+
+
+#loadingFunction {
+	z-index: 500;
+	position: relative;
+	min-height: 300px;
+}
+
+#loadingFileLeft {
+	z-index: 1;
+	margin-top: 100px;
+	position: absolute;
+	animation-duration: 4s;
+  	animation-name: slidein;
+  	animation-iteration-count: infinite;
+  	animation-timing-function: linear;
+}
+#loadingFileRight {
+	z-index: 1;
+	margin-top: 100px;
+	position: absolute;
+	animation-delay: 4s; 
+	animation-duration: 4s;
+  	animation-name: slideout;
+  	animation-iteration-count: infinite;
+  	animation-timing-function: linear;
+}
+
+
+
+.appear {
+	animation-duration: 1s;
+  	animation-name: appear;
+  	animation-timing-function: ease-in;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+
+@keyframes slideout {
+  from {
+    right: 50%;
+    opacity: 1
+  }
+
+  to {
+    right: -100%;
+    opacity: 0;
+  }
+}
+
+@keyframes slidein {
+  from {
+    left:-100%;
+    opacity: 1
+  }
+
+  to {
+    left: 50%;
+    opacity: 0;
+  }
+}
+

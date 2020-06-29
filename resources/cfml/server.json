@@ -1,0 +1,25 @@
+{
+    "name":"fixinator-gui",
+    "openBrowser":false,
+    "trayOptions":[
+        {
+            "disabled":true
+        }
+    ],
+    "jvm":{
+        "heapSize":256,
+        "minHeapSize":128
+    },
+    "web":{
+        "host":"127.0.0.1",
+        "welcomeFiles":"index.cfm",
+        "HTTP":{
+            "enable":true,
+            "port":8584
+        },
+        "rewrites":{
+            "enable":"true",
+            "config":"rewrites.xml"
+        }
+    }
+}

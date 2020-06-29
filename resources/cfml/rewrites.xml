@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<urlrewrite>
+    <rule>
+        <from>^/lucee.*$</from>
+        <to type="redirect" last="true">/</to>
+    </rule>
+    <rule>
+		<note>Generic Front-Controller URLs</note>
+		<condition type="request-uri" operator="notequal">^/assets/.*</condition>
+		<!-- check that it is a file 
+		<condition type="request-filename" operator="notfile"/>-->
+		<!-- Turn localhost/foo into localhost/index.cfm/foo -->
+		<from>^/(.+)$</from>
+		<to type="passthrough">/index.cfm/$1</to>
+	</rule>
+</urlrewrite>
