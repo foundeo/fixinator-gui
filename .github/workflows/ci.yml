@@ -27,4 +27,6 @@ jobs:
 
     # build
     - name: Generate Binaries
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: npm run dist
