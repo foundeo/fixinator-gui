@@ -3,19 +3,17 @@
 cd "$(dirname "$0")"
 cd ../
 
+#install electron deps
 npm install
 
 npm audit
 
+#install client JS deps
 cd resources/cfml/assets/
 
 npm install
 
 npm audit
-
-cd ../../../build/
-
-./clean.sh
 
 cd ../
 
@@ -25,6 +23,10 @@ curl -o ./resources/box.jar https://s3.amazonaws.com/downloads.ortussolutions.co
 
 cd resources/cfml/
 
-#box install
+#box install cfml deps
 java -jar ../box.jar install
 
+#clean deps
+cd ../../build
+
+./clean.sh

@@ -5,7 +5,7 @@
     "main": "index.js",
     "scripts": {
         "start": "electron .",
-        "dist": "electron-builder --mac --win",
+        "dist": "electron-builder --mac --win --publish never",
         "dist-mac": "electron-builder --mac"
     },
     "repository": {
