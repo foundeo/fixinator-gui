@@ -15,7 +15,9 @@ npm install
 
 npm audit
 
-cd ../
+cd ../../../
+
+pwd
 
 #download box.jar
 
