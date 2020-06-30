@@ -49,16 +49,33 @@ function boxExecute(resource_path, command, commandbox_home) {
         var cfml_path = path.join(resource_path, 'cfml');
         var cmd = `cd "${cfml_path}" && "${java_path}" -jar "${box_path}" ${properites_data} ${command}`;
         console.log(cmd);
-        execute(cmd, (output) => {
-            console.log(output)
+        execute(cmd, (output, failed) => {
+            console.log(output);
         })
     });
 }
 
 function execute(command, callback) {
     exec(command, (error, stdout, stderr) => { 
-        if( error ) callback(error)
-        if( stderr ) callback(stderr)
-        if( stdout ) callback(stdout)
+        if( error ) {
+            if ( stdout ) {
+                dialog.showMessageBox({
+                    title: 'Failed to Start CommandBox',
+                    message: 'Failed to Start CommandBox',
+                    detail: stdout.toString()
+               });  
+            }
+            callback(error, true);
+
+        }
+        if( stderr ) {
+          callback(stderr, true);
+          dialog.showMessageBox({
+                title: 'Failed to Start CommandBox',
+                message: 'Failed to Start CommandBox',
+                detail: stderr.toString()
+           });  
+        }
+        if( stdout ) callback(stdout, false)
     })
 }
