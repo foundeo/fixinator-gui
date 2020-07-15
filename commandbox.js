@@ -23,14 +23,14 @@ module.exports.execute = function (resource_path, command, commandbox_home) {
 
 function boxExecute(resource_path, command, commandbox_home) {
     require('find-java-home')(function(err, home){
-        if(err) {
+        if(err || typeof(home) != 'string') {
             dialog.showMessageBox({
                 title: 'Unable to Find Java',
                 message: 'Unable to find java on your computer.',
                 detail: 'If you have java installed make sure you set JAVA_HOME, or install Java 11 from: https://adoptopenjdk.net'
             });
             console.log(err);
-            
+            console.log(home);
             return;
         }
 
