@@ -54,7 +54,7 @@
       <div class="col-2 text-right"><strong>Fixinator API Key:</strong></div>
       <div class="col-10">
         <cfset key = prc.fixinatorClient.getAPIKey()>
-        <cfif key IS NOT "UNDEFINED">
+        <cfif key IS NOT "UNDEFINED" AND len(key) GT 6>
           <cfset key = left(key, 5) & repeatString("*", len(key)-5)>
         </cfif>
         <code>#encodeForHTML(key)#</code>
