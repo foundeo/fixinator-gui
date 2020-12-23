@@ -21,7 +21,7 @@ pwd
 
 #download box.jar
 
-curl -o ./resources/box.jar https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/commandbox/5.1.1/box.jar
+curl -o ./resources/box.jar https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/commandbox/5.2.1/box.jar
 
 cd resources/cfml/
 
