@@ -24,10 +24,9 @@ module.exports.execute = function (resource_path, command, commandbox_home) {
 function boxExecute(resource_path, command, commandbox_home) {
     require('find-java-home')(function(err, home){
         if(err || typeof(home) != 'string') {
-            dialog.showMessageBox({
+            dialog.showErrorBox({
                 title: 'Unable to Find Java',
-                message: 'Unable to find java on your computer.',
-                detail: 'If you have java installed make sure you set JAVA_HOME, or install Java 11 from: https://adoptopenjdk.net'
+                content: 'If you have java installed make sure you set JAVA_HOME, or install Java 11 from: https://adoptopenjdk.net'
             });
             console.log(err);
             console.log(home);
@@ -59,10 +58,9 @@ function execute(command, callback) {
     exec(command, (error, stdout, stderr) => { 
         if( error ) {
             if ( stdout ) {
-                dialog.showMessageBox({
+                dialog.showErrorBox({
                     title: 'Failed to Start CommandBox',
-                    message: 'Failed to Start CommandBox',
-                    detail: stdout.toString()
+                    content: stdout.toString()
                });  
             }
             callback(error, true);
@@ -70,10 +68,9 @@ function execute(command, callback) {
         }
         if( stderr ) {
           callback(stderr, true);
-          dialog.showMessageBox({
+          dialog.showErrorBox({
                 title: 'Failed to Start CommandBox',
-                message: 'Failed to Start CommandBox',
-                detail: stderr.toString()
+                content: stderr.toString()
            });  
         }
         if( stdout ) callback(stdout, false)
