@@ -28,10 +28,12 @@ function boxExecute(resource_path, command, commandbox_home) {
                 title: 'Unable to Find Java',
                 message: 'Unable to find java on your computer.',
                 detail: 'If you have java installed make sure you set JAVA_HOME, or install Java 11 from: https://adoptopenjdk.net'
+            }).then(function() {
+                app.quit();
             });
             console.log(err);
             console.log(home);
-            closeAllBrowserWindows();
+            
             return;
         }
 
@@ -81,11 +83,3 @@ function execute(command, callback) {
     })
 }
 
-function closeAllBrowserWindows() {
-    setTimeout(function() {
-        var windows = BrowserWindow.getAllWindows();
-        for (var i=0;i<windows.length;i++) {
-            windows[i].close();
-        }
-    }, 1500);
-}
