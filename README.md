@@ -21,3 +21,15 @@ Download the [latest Fixinator-x.y.z.dmg](https://github.com/foundeo/fixinator-g
 Double click the dmg file, and then drag the Fixinator icon into the Applications folder.
 
 Go to the Applications folder, and right click on Fixinator and select Open. 
+
+## Uninstall
+
+### Windows
+
+Open the _Add Remove Programs_ from the Windows Control Panel, locate Fixinator and click Uninstall.
+
+Application data is stored in `C:\Users\UserName\AppData\Local\Programs\Fixinator` and configuration data in `C:\Users\UserName\AppData\Roaming\Fixinator` by default.
+
+### Mac
+
+Delete the Fixinator.app from the Applications folder. Configuration data is stored in `~/Library/Application Support/Fixinator`

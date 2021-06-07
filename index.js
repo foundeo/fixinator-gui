@@ -44,9 +44,10 @@ app.on('ready', () => {
 app.on('window-all-closed', () => {
     // On macOS it is common for applications and their menu bar
     // to stay active until the user quits explicitly with Cmd + Q
-    if (process.platform !== 'darwin') {
+    //if (process.platform !== 'darwin') {
+        stopCommandBox()
         app.quit()
-    }
+    //}
 })
 
 app.on('activate', () => {
@@ -107,10 +108,7 @@ function createWindow() {
         // when you should delete the corresponding element.
         win = null;
     });
-    //quit the app if all windows are closed
-    app.on('window-all-closed', () => {
-        app.quit()
-    });
+    
 }
 
 function getCommandBoxHome() {
