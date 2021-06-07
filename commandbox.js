@@ -2,7 +2,7 @@
 
 const { exec } = require('child_process');
 const path = require('path');
-const { dialog, app } = require('electron');
+const { dialog, app, BrowserWindow } = require('electron');
 
 let path_to_module = __dirname;
 
@@ -24,12 +24,14 @@ module.exports.execute = function (resource_path, command, commandbox_home) {
 function boxExecute(resource_path, command, commandbox_home) {
     require('find-java-home')(function(err, home){
         if(err || typeof(home) != 'string') {
-            dialog.showErrorBox({
+            dialog.showMessageBox({
                 title: 'Unable to Find Java',
-                content: 'If you have java installed make sure you set JAVA_HOME, or install Java 11 from: https://adoptopenjdk.net'
+                message: 'Unable to find java on your computer.',
+                detail: 'If you have java installed make sure you set JAVA_HOME, or install Java 11 from: https://adoptopenjdk.net'
             });
             console.log(err);
             console.log(home);
+            closeAllBrowserWindows();
             return;
         }
 
@@ -58,9 +60,10 @@ function execute(command, callback) {
     exec(command, (error, stdout, stderr) => { 
         if( error ) {
             if ( stdout ) {
-                dialog.showErrorBox({
+                dialog.showMessageBox({
                     title: 'Failed to Start CommandBox',
-                    content: stdout.toString()
+                    message: 'Failed to Start CommandBox',
+                    detail: stdout.toString()
                });  
             }
             callback(error, true);
@@ -68,11 +71,21 @@ function execute(command, callback) {
         }
         if( stderr ) {
           callback(stderr, true);
-          dialog.showErrorBox({
+          dialog.showMessageBox({
                 title: 'Failed to Start CommandBox',
-                content: stderr.toString()
+                message: 'Failed to Start CommandBox',
+                detail: stderr.toString()
            });  
         }
         if( stdout ) callback(stdout, false)
     })
+}
+
+function closeAllBrowserWindows() {
+    setTimeout(function() {
+        var windows = BrowserWindow.getAllWindows();
+        for (var i=0;i<windows.length;i++) {
+            windows[i].close();
+        }
+    }, 1500);
 }
