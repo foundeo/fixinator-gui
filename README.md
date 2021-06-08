@@ -22,6 +22,15 @@ Double click the dmg file, and then drag the Fixinator icon into the Application
 
 Go to the Applications folder, and right click on Fixinator and select Open. 
 
+### Standalone Web Application 
+
+You can also run Fixinator GUI as a web application with CommandBox. Just download or clone this repo, and then run:
+
+    cd resources/cfml/
+    box server start 
+
+This will open the application in a browser window instead of a native Windows or Mac app window.
+
 ## Uninstall
 
 ### Windows
