@@ -7,6 +7,7 @@ const { dialog, app, BrowserWindow } = require('electron');
 let path_to_module = __dirname;
 let server_started = false;
 let server_stopping = false;
+let java_home_path = null;
 
 // Starts a CommandBox Instance
 module.exports.start = function (resource_path, commandbox_home) {
@@ -15,7 +16,7 @@ module.exports.start = function (resource_path, commandbox_home) {
 
 // Stops CommandBox Instance
 module.exports.stop = function (resource_path, commandbox_home) {
-    if (server_started && !server_stopping) {
+    if (java_home_path != null && !server_stopping) {
         server_stopping = true;
         boxExecute(resource_path, 'server stop', commandbox_home);
     }
@@ -27,40 +28,48 @@ module.exports.execute = function (resource_path, command, commandbox_home) {
 }
 
 function boxExecute(resource_path, command, commandbox_home) {
-    require('find-java-home')(function(err, home){
-        if(err || typeof(home) != 'string') {
-            dialog.showMessageBox({
-                title: 'Unable to Find Java',
-                message: 'Unable to find java on your computer.',
-                detail: 'If you have java installed make sure you set JAVA_HOME, or install Java 11 from: https://adoptopenjdk.net'
-            }).then(function() {
-                app.quit();
-            });
-            console.log(err);
-            console.log(home);
-            
-            return;
-        }
+    if (java_home_path == null) {
+        require('find-java-home')(function(err, home){
+            if(err || typeof(home) != 'string') {
+                dialog.showMessageBox({
+                    title: 'Unable to Find Java',
+                    message: 'Unable to find java on your computer.',
+                    detail: 'If you have java installed make sure you set JAVA_HOME, or install Java 11 from: https://adoptopenjdk.net'
+                }).then(function() {
+                    app.quit();
+                });
+                console.log(err);
+                console.log(home);
+                
+                return;
+            }
 
-        
+            java_home_path = home;
+            boxExecuteWithJava(resource_path, command, commandbox_home, java_home_path);
+        });
+    } else {
+        boxExecuteWithJava(resource_path, command, commandbox_home, java_home_path);
+    }
+}
 
-        if (!commandbox_home) {
-            var properties_path = path.join(resource_path, 'commandbox', 'home');
-            commandbox_home = properties_path;    
-        }
-        
+function boxExecuteWithJava(resource_path, command, commandbox_home, java_home) {
+    var home = java_home;
+    if (!commandbox_home) {
+        var properties_path = path.join(resource_path, 'commandbox', 'home');
+        commandbox_home = properties_path;    
+    }
+    
 
-        var properites_data = `-commandbox_home="${commandbox_home}"`;
+    var properites_data = `-commandbox_home="${commandbox_home}"`;
 
-        var java_path = path.join(home, 'bin', 'java');
-        var box_path = path.join(resource_path, 'box.jar');
-        var cfml_path = path.join(resource_path, 'cfml');
-        var cmd = `cd "${cfml_path}" && "${java_path}" -jar "${box_path}" ${properites_data} ${command}`;
-        console.log(cmd);
-        execute(cmd, (output, failed) => {
-            console.log(output);
-        })
-    });
+    var java_path = path.join(home, 'bin', 'java');
+    var box_path = path.join(resource_path, 'box.jar');
+    var cfml_path = path.join(resource_path, 'cfml');
+    var cmd = `cd "${cfml_path}" && "${java_path}" -jar "${box_path}" ${properites_data} ${command}`;
+    console.log(cmd);
+    execute(cmd, (output, failed) => {
+        console.log(output);
+    })
 }
 
 function execute(command, callback) {
@@ -85,7 +94,7 @@ function execute(command, callback) {
            });  
         }
         if( stdout ) {
-            if (command == 'server start') {
+            if (command.indexOf('server start') != -1) {
                 server_started = true;
             }
             callback(stdout, false);
