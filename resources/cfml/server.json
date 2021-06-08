@@ -1,11 +1,7 @@
 {
     "name":"fixinator-gui",
     "openBrowser":false,
-    "trayOptions":[
-        {
-            "disabled":true
-        }
-    ],
+    "trayEnable": false,
     "jvm":{
         "heapSize":256,
         "minHeapSize":128

@@ -5,6 +5,8 @@ const path = require('path');
 const { dialog, app, BrowserWindow } = require('electron');
 
 let path_to_module = __dirname;
+let server_started = false;
+let server_stopping = false;
 
 // Starts a CommandBox Instance
 module.exports.start = function (resource_path, commandbox_home) {
@@ -13,7 +15,10 @@ module.exports.start = function (resource_path, commandbox_home) {
 
 // Stops CommandBox Instance
 module.exports.stop = function (resource_path, commandbox_home) {
-    boxExecute(resource_path, 'server stop', commandbox_home);
+    if (server_started && !server_stopping) {
+        server_stopping = true;
+        boxExecute(resource_path, 'server stop', commandbox_home);
+    }
 }
 
 // Custom CommandBox Commands
@@ -79,7 +84,12 @@ function execute(command, callback) {
                 detail: stderr.toString()
            });  
         }
-        if( stdout ) callback(stdout, false)
+        if( stdout ) {
+            if (command == 'server start') {
+                server_started = true;
+            }
+            callback(stdout, false);
+        } 
     })
 }
 
