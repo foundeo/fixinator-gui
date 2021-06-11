@@ -2,6 +2,8 @@
 
 Native applications for Windows or Mac OS to run [Fixinator](https://fixinator.app) scans.
 
+![Fixinator GUI Demo](https://github.com/foundeo/fixinator-demos/blob/main/fixinator-gui-2021-06-11-01-sm.gif?raw=true)
+
 ## Installation
 
 ### Prerequisites 
