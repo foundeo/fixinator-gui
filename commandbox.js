@@ -34,7 +34,7 @@ function boxExecute(resource_path, command, commandbox_home) {
                 dialog.showMessageBox({
                     title: 'Unable to Find Java',
                     message: 'Unable to find java on your computer.',
-                    detail: 'If you have java installed make sure you set JAVA_HOME, or install Java 11 from: https://adoptopenjdk.net'
+                    detail: 'If you have java installed make sure you set JAVA_HOME, or install Java 11 from: https://www.microsoft.com/openjdk'
                 }).then(function() {
                     app.quit();
                 });
