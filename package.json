@@ -18,6 +18,7 @@
     "author": "Foundeo Inc.",
     "license": "MIT",
     "devDependencies": {
+        "got": "^11.8.5",
         "electron": "^20.0.2",
         "electron-builder": "^23.3.3"
     },
