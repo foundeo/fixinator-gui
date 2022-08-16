@@ -1,6 +1,6 @@
 {
     "name": "Fixinator",
-    "version": "2.0.8",
+    "version": "3.0.0",
     "description": "Fixinator GUI App",
     "main": "index.js",
     "scripts": {
@@ -18,11 +18,11 @@
     "author": "Foundeo Inc.",
     "license": "MIT",
     "devDependencies": {
-        "electron": "^15.5.5",
-        "electron-builder": "^22.7.0"
+        "electron": "^20.0.2",
+        "electron-builder": "^23.3.3"
     },
     "dependencies": {
-        "find-java-home": "^1.1.0"
+        "find-java-home": "^1.2.2"
     },
     "build": {
         "appId": "com.foundeo.fixinator-gui",
