@@ -1,6 +1,8 @@
 # Fixinator GUI
 
-Native applications for Windows or Mac OS to run [Fixinator](https://fixinator.app) scans.
+> The native GUI version of Fixinator has been discontinued. In the near future we will be re-releasing this app as a GUI web application instead of a native exe. In the meantime please use the commandbox cli interface, or the [fixinator-runner](https://github.com/foundeo/fixinator-runner/) scheduled task.
+
+Fixinator GUI is a Native applications for Windows or Mac OS to run [Fixinator](https://fixinator.app) scans.
 
 ![Fixinator GUI Demo](https://github.com/foundeo/fixinator-demos/blob/main/fixinator-gui-2021-06-11-01-sm.gif?raw=true)
 
