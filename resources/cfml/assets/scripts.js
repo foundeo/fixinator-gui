@@ -4,10 +4,17 @@ $(document).ready(function() {
 	$('.apiTypeCheck').change(function() {
 		if ($(this).is(':checked') && $(this).val() == "enterprise") {
 			$('#enterpriseURL').removeClass("hidden");
+			$('#cloudApiConfig').addClass("hidden");
 		} else {
 			$('#enterpriseURL').addClass("hidden");
+			$('#cloudApiConfig').removeClass("hidden");
 		}
-	})
+	});
+
+	$('#setupWizardStep1Button').click(function() {
+		$('#setupWizardStep1').addClass('hidden');
+		$('#setupWizardStep2').removeClass('hidden');
+	});
 
 	$('.progress').each(function() {
 
@@ -91,6 +98,11 @@ $(document).ready(function() {
 
 	var differ = null;
 
+	var scrollToLine = parseInt($('select.fix-select:first').attr('data-fix-line'));
+	if (scrollToLine == NaN) {
+		scrollToLine = 0;
+	}
+
 	function loadDiff() {
 		var data = getDifferData();
 		var fixSelects =  $('select.fix-select').toArray();
@@ -103,6 +115,11 @@ $(document).ready(function() {
 
 		$.ajax({method:'POST', url:'/scan/differ', data:data}).done(function(result) {
 			
+			if (differ) {
+				differ.destroy();
+				differ = null;
+			}
+
 			$('.acediff').html('');
 			if (!result.fixed || result.fixed.length == 0) {
 				result.fixed = result.source;
@@ -156,6 +173,27 @@ $(document).ready(function() {
 				}
 			}
 
+			//fix gutter for v4 bug
+			var lefty = differ.getEditors().left;
+			var righty = differ.getEditors().right;
+			lefty.renderer.on('afterRender', function fix() {
+				if (!differ.gutterSVG) return;          // constructor's deferred init hasn't run yet
+				lefty.renderer.off('afterRender', fix);
+				lefty.resize(true);
+    			righty.resize(true);
+				differ.lineHeight = lefty.renderer.lineHeight;
+				differ.diff();
+				//scroll to finding
+				if (scrollToLine != NaN && scrollToLine != 0) {
+					lefty.scrollToLine(scrollToLine - 1, true, true, function () {});
+				}
+			});
+			
+			
+
+			//temp for debugging
+			window.differ = differ;
+
 		}).fail( function (jqXHR, textStatus, errorThrown) {
 			$('.acediff').addClass('alert').addClass('alert-danger');
 			var msg = "Error computing fix code";
@@ -167,6 +205,7 @@ $(document).ready(function() {
 	}
 
 	$('select.fix-select').change(function() {
+		scrollToLine = parseInt($(this).attr('data-fix-line'));
 		loadDiff();
 	});
 
@@ -196,7 +235,7 @@ $(document).ready(function() {
 	});
 
 	$(window).focus(function() {
-		if ($('#differ').lenght == 1) {
+		if ($('#differ').length == 1) {
 			var data = getDifferData();
 			$.ajax({method:'POST', url:'/scan/changed', data:data}).done(function(result) {
 				if (result.changed && result.changed === true) {

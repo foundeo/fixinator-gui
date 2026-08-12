@@ -21,7 +21,7 @@ component singleton extends="DataService" {
 		cfsetting(requesttimeout="9000");//9000 seconds, 2.5h
 		result = getFixinatorClient().run(path=p.path, config=p.config, progressBar=progressBar);
 
-		result["gui"] = {"scan_date"="#dateTimeFormat(now(), "yyyy-mm-dd HH:mm:ss")#", "project_id"=projectID, "base_path"=getFixinatorClient().normalizeSlashes(p.path), "file_count"=arrayLen(result.files), "updated"="#dateTimeFormat(now(), "yyyy-mm-dd HH:mm:ss")#"};
+		result["gui"] = {"scan_date"="#dateTimeFormat(now(), "yyyy-mm-dd HH:nn:ss")#", "project_id"=projectID, "base_path"=getFixinatorClient().normalizeSlashes(p.path), "file_count"=arrayLen(result.files), "updated"="#dateTimeFormat(now(), "yyyy-mm-dd HH:nn:ss")#"};
 		//add uid to each issue
 		for (r in result.results) {
 			if (!r.keyExists("uid")) {
@@ -84,19 +84,25 @@ component singleton extends="DataService" {
 		//var injector = new wirebox.system.ioc.Injector();
 		var fixinatorClient = wirebox.getInstance("FixinatorClient@fixinator");
 		var settings = settingsService.getSettings();
-		if (settings.keyExists("api_url") && len(settings.api_url)) {
-			fixinatorClient.setAPIURL(settings.api_url);	
+		if (settingsService.hasEnterprisePath()) {
+			fixinatorClient.setFixinatorEnterpriseInstance(settingsService.getFixinatorEnterpriseInstance());
+			fixinatorClient.setForceLocal(true);
+		} else {
+			if (settings.keyExists("api_url") && len(settings.api_url)) {
+				fixinatorClient.setAPIURL(settings.api_url);	
+			}
+			if (settings.keyExists("api_key") && len(settings.api_key)) {
+				fixinatorClient.setAPIKey(settings.api_key);		
+			}
 		}
-		if (settings.keyExists("api_key") && len(settings.api_key)) {
-			fixinatorClient.setAPIKey(settings.api_key);		
-		}
+		
 		return fixinatorClient;
 	}
 
 
 	function save(scanID, data) {
 		if (isValid("uuid", scanID)) {
-			data.gui.updated = "#dateTimeFormat(now(), "yyyy-mm-dd HH:mm:ss")#";
+			data.gui.updated = "#dateTimeFormat(now(), "yyyy-mm-dd HH:nn:ss")#";
 			fileWrite(getScanDataDirectory() & scanID & ".json", serializeJSON(data) );
 		}
 	}

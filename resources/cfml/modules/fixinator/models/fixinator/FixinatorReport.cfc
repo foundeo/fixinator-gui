@@ -12,6 +12,10 @@
 		<cfargument name="resultFile" default="">
 		<cfargument name="data">
 		<cfargument name="listBy" type="string" default="type">
+		<cfargument name="fixinatorClientVersion" type="string" default="0.0.0">
+		<cfset var utc_now = dateConvert("local2utc", now())>
+		<cfset arguments.data["timestamp"] = dateFormat(utc_now, "yyyy-mm-dd") & "T" & timeFormat(utc_now, "HH:mm:ss") & "Z">
+		<cfset arguments.data["fixinator_client_version"] = arguments.fixinatorClientVersion>
 		<!--- make sure user is not passing a directory --->
 		<cfif directoryExists(arguments.resultFile)>
 			<cfthrow message="Please specify a file name in resultFile, not a directory.">
@@ -35,6 +39,8 @@
 			<cfset fileWrite(arguments.resultFile, generateFindBugsReport(data=arguments.data))>
 		<cfelseif format IS "csv">
 			<cfset fileWrite(arguments.resultFile, generateCSVReport(data=arguments.data))>
+		<cfelseif format IS "sarif">
+			<cfset fileWrite(arguments.resultFile, generateSarifReport(data=arguments.data))>
 		<cfelse>
 			<cfthrow message="Unsupported result file format">
 		</cfif>
@@ -86,22 +92,44 @@
 		<cfset var resultsByType = {}>
 		<cfset var typeKey = "">
 		<cfset var result = "">
+		<cfset var countBySeverity = {"0":0, "1":0, "2":0, "3":0}>
+		<cfset var totalCount = 0>
 
 		<cfloop array="#arguments.data.results#" index="local.i">
 			<cfset local.typeKey = "">
 			<cfif arguments.listBy IS "type">
-					<cfif local.i.keyExists("title") AND len(local.i.title)>
-						<cfset local.typeKey = local.i.title>
-					</cfif>
-					<cfset local.typeKey = local.typeKey & " [" & local.i.id & "]">
+				<cfif local.i.keyExists("title") AND len(local.i.title)>
+					<cfset local.typeKey = local.i.title>
+				</cfif>
+				<cfset local.typeKey = local.typeKey & " [" & local.i.id & "]">
 			<cfelse>
-					<cfset local.typeKey = local.i.path>
+				<cfset local.typeKey = local.i.path>
 			</cfif>
 			<cfif NOT resultsByType.keyExists(local.typeKey)>
-					<cfset resultsByType[local.typeKey] = []>
+				<cfset resultsByType[local.typeKey] = {issues=[], maxSeverity=0, maxConfidence=0, title=local.i.title, id=local.i.id}>
 			</cfif>
-			<cfset arrayAppend(resultsByType[local.typeKey], local.i)>
+			<cfif local.i.keyExists("severity") AND local.i.severity GT resultsByType[local.typeKey].maxSeverity>
+				<cfset resultsByType[local.typeKey].maxSeverity = local.i.severity>
+			</cfif>
+			<cfif local.i.keyExists("confidence") AND local.i.confidence GT resultsByType[local.typeKey].maxConfidence>
+				<cfset resultsByType[local.typeKey].maxConfidence = local.i.confidence>
+			</cfif>
+			<cfset arrayAppend(resultsByType[local.typeKey].issues, local.i)>
+			<cfif local.i.keyExists("severity") AND structKeyExists(countBySeverity, local.i.severity)>
+				<cfset countBySeverity[local.i.severity]++>
+			</cfif>
+			<cfset totalCount++>
 		</cfloop>
+
+		<!--- sort array by severity --->
+		<cfset local.issueTypeSorted = listToArray(structKeyList(resultsByType))>
+		<cfset arraySort(
+			local.issueTypeSorted,
+			function (e1, e2){
+				return compare((resultsByType[e2].maxSeverity*100+resultsByType[e2].maxConfidence), (resultsByType[e1].maxSeverity*100+resultsByType[e2].maxConfidence));
+			}
+		)>
+		
 
 			
 		<cfsavecontent variable="html">
@@ -109,17 +137,23 @@
 			<head>
 				<title>Fixinator Scan Report</title>
 				<style>	
-					body, td, th {
-						font-family: "Helvetica Neue", Helvetica;
-						font-weight: 200;
+					body, td, th, div, p {
+						font-family: Verdana, Helvetica, Arial;
 						max-width: 1000px;
+						font-size: 11pt;
 					}
+					th { text-align: left; }
+					h2 { font-size: 13pt; }
+					h3 { font-size: 12pt; font-family: monospace; font-weight:bold;}
 					.type-key {
 						border-bottom: 1px solid black;
 					}
-					.issue-message { 
-						color:#bbb;
+					.issue-message, .issue-description { 
+						color:#aaa;
 						margin-left: 15px;
+					}
+					.issue-description {
+						font-size:smaller;
 					}
 					.issue-context {
 						margin-left: 15px;
@@ -134,35 +168,101 @@
 					.issue {
 						padding-left: 5px;
 					}
-					.badge { width: 30px; padding: 4px; }
-					.ind-1 { background-color:RebeccaPurple; color:white; }
+					h5 {
+						margin-left: 15px;
+					}
+					ol { margin-left: 20px; }
+					ol li { font-size: smaller; }
+					.text-center { text-align: center; }
+					.badge { min-width: 40px; padding: 4px; border-radius: 3px; }
+					.ind-1 { background-color:#444; color:white; }
+					.ind-1 { background-color:purple; color:white; }
 					.ind-2 { background-color:orange; color:white; }
 					.ind-3 { background-color:red; color:white; }
+					.type-count { border: 1px solid gray; border-radius: 3px; color:gray; text-align:center; padding: 1px; }
+					.issue-types { width: 100%; }
+					.issue-types a { color: black; text-decoration:none; }
 				</style>
 			</head>
 			<body>
 				<h1>Fixinator Scan Results</h1>
-				<p>Report generated on <cfoutput>#dateTimeFormat(now(), "full")#</cfoutput>
+				<p>Report generated on <cfoutput>#dateTimeFormat(now(), "full")#, found #int(totalCount)# possible issues.</cfoutput></p>
 				<cfoutput>
 					<cfif arrayLen(data.results) GT 0>
 						<cfif arguments.listBy IS "type">
-							<table border="0" cellspacing="0" cellpadding="8">
+							<h2>Issues by Type</h2>
+							<table border="0" cellspacing="0" cellpadding="8" class="issue-types">
 								<tr>
+									<th>##</th>
 									<th>Issue Type</th>
-									<th>Occurrences</th>
+									<th>Severity</th>
 								</tr>
-								<cfloop item="typeKey" collection="#resultsByType#"> 
+								<cfset local.typesShown = []>
+								<cfloop item="typeKey" array="#local.issueTypeSorted#">
 									<tr>
-										<td>#encodeForHTML(typeKey)#</td>
-										<th><a href="###hash(typeKey, "SHA-256")#">#int(arrayLen(resultsByType[typeKey]))#</a></th>
+										<td><div class="type-count">#int(arrayLen(resultsByType[typeKey].issues))#</div></td>
+										<td><a href="###hash(typeKey, "SHA-256")#">#encodeForHTML(resultsByType[typeKey].title)#</a></td>
+										
+										<td><span class="badge ind-#resultsByType[typeKey].maxSeverity#"><cfif resultsByType[typeKey].maxSeverity EQ 3>HIGH<cfelseif resultsByType[typeKey].maxSeverity EQ 2>MED<cfelseif resultsByType[typeKey].maxSeverity EQ 1>LOW<cfelse>NONE</cfif></span></td>
 									</tr>
 								</cfloop>
+								<!---
+								<cfloop item="typeKey" collection="#resultsByType#">
+									<cfif resultsByType[typeKey].maxSeverity EQ 2>
+										<tr>
+											<td>#encodeForHTML(typeKey)#</td>
+											<td><a href="###hash(typeKey, "SHA-256")#">#int(arrayLen(resultsByType[typeKey].issues))#</a></td>
+											<td><span class="badge ind-2">MED</span></td>
+										</tr>
+									</cfif>
+								</cfloop>
+								<cfloop item="typeKey" collection="#resultsByType#">
+									<cfif resultsByType[typeKey].maxSeverity NEQ 2 AND resultsByType[typeKey].maxSeverity NEQ 3>
+										<tr>
+											<td>#encodeForHTML(typeKey)#</td>
+											<td><a href="###hash(typeKey, "SHA-256")#">#int(arrayLen(resultsByType[typeKey].issues))#</a></td>
+											<td><span class="badge ind-1"><cfif resultsByType[typeKey].maxSeverity EQ 1>LOW<cfelse>NONE</cfif></span></td>
+										</tr>
+									</cfif>
+								</cfloop>
+								--->
 							</table>
 						</cfif>
+						<h2>Issues by Severity</h2>
+						<table border="0" cellspacing="0" cellpadding="8" class="severity-counts">
+							<tr>
+								<th>Count</th>
+								<th>Severity</th>
+							</tr>
+							<cfloop from="3" to="0" index="local.i" step="-1">
+								<cfif countBySeverity[local.i] GT 0>
+									<tr>
+										<td><div class="type-count">#int(countBySeverity[local.i])#</div></td>
+										<td><span class="badge ind-#local.i#"><cfif local.i EQ 3>HIGH<cfelseif local.i EQ 2>MED<cfelseif local.i EQ 1>LOW<cfelse>NONE</cfif></span>
+									</tr>
+								</cfif>
+							</cfloop>
+						</table>
 
-						<cfloop item="typeKey" collection="#resultsByType#"> 
+						<cfloop item="typeKey" array="#local.issueTypeSorted#"> 
 							<h2 class="type-key" id="#hash(typeKey, "SHA-256")#">#encodeForHTML(typeKey)#</h2>
-							<cfloop array="#resultsByType[typeKey]#" index="local.i">
+							<cfset local.issuesHaveDifferentDescriptions = false>
+							<cfset local.typeDescription = "">
+							<cfset local.typeID = "">
+							<cfif arrayLen(resultsByType[typeKey].issues) AND resultsByType[typeKey].issues[1].keyExists("id")>
+								<cfset local.typeID = resultsByType[typeKey].issues[1].id>
+								<cfif data.keyExists("categories") AND data.categories.keyExists(local.typeID) AND data.categories[local.typeID].keyExists("description")>
+									<cfset local.typeDescription = data.categories[local.typeID].description>
+									<cfif len(local.typeDescription)>
+										<p class="issue-type-description">
+											#encodeForHTML(local.typeDescription)#
+										</p>
+									</cfif>
+								</cfif>
+							</cfif>
+							
+							
+							<cfloop array="#resultsByType[typeKey].issues#" index="local.i">
 								<div class="issue">
 									<cfif arguments.listBy IS "type">
 										<h3>#encodeForHTML(local.i.path)#:#int(local.i.line)#</h3>
@@ -177,6 +277,11 @@
 									<cfif local.i.keyExists("message") AND len(local.i.message)>
 										<div class="issue-message">
 											#encodeForHTML(local.i.message)#
+										</div>	
+									</cfif>
+									<cfif local.i.keyExists("description") AND len(local.i.description) AND local.i.description IS NOT local.typeDescription>
+										<div class="issue-description">
+											#replace(encodeForHTML(replace(local.i.description, chr(10), "__br__", "ALL")), "__br__", "<br>","ALL")#
 										</div>	
 									</cfif>
 									
@@ -250,6 +355,14 @@
 									</cfif>
 								</td>
 							</tr>
+							<cfif data.keyExists("fixinatorArguments") AND data.fixinatorArguments.keyExists("path") AND isSimpleValue(data.fixinatorArguments.path)>
+								<tr>
+									<th align="right">Scan Path:</th>
+									<td>
+										<small>#encodeForHTML(data.fixinatorArguments.path)#</small>
+									</td>
+								</tr>
+							</cfif>
 						</table>
 					</cfif>
 				</cfoutput>
@@ -331,12 +444,21 @@
 
 	<cffunction name="generateSASTReport" returntype="string" output="false">
 		<cfargument name="data">
-		<cfset var sast = {"version"="2.0", "vulnerabilities"=[]}>
+		<cfset var sast = {"version"="15.0.6", "vulnerabilities"=[], "scan"={}}>
 		<cfset var i = "">
 		<cfset var v = "">
+		<cfset sast.scan["analyzer"] = {"id"="fixinator","name"="Fixinator", "version"=data.fixinator_client_version, "vendor"={"name":"Foundeo Inc."}}>
+		<cfset sast.scan["end_time"] = replace(arguments.data.timestamp, "Z", "")>
+		<cfset sast.scan["start_time"] = replace(arguments.data.timestamp, "Z", "")>
+		<cfset sast.scan["scanner"] = sast.scan["analyzer"]>
+		<cfset sast.scan["status"] = "success">
+		<cfset sast.scan["type"] = "sast">
+		<cfif arrayLen(arguments.data.results)>
+			<cfset sast.scan["status"] = "failure">
+		</cfif>
 		<!--- docs: https://gitlab.com/help/user/application_security/sast/index#reports-json-format --->
 		<cfloop array="#arguments.data.results#" index="i">
-			<cfset v = {"category"="sast", "name"="", "message"="", "description"="", "severity"="Unknown", "confidence"="Unknown", "scanner"={"id"="", "name"=""}, "location"={}, "identifiers"=[]}>
+			<cfset v = {"id"="", "category"="sast", "name"="", "message"="", "description"="", "severity"="Unknown", "confidence"="Unknown", "scanner"={"id"="", "name"=""}, "location"={}, "identifiers"=[]}>
 			<cfif i.keyExists("title")>
 				<cfset v.name = i.title>
 			</cfif>
@@ -386,11 +508,11 @@
 			<cfif i.keyExists("function") AND len(i.function)>
 				<cfset v.location["method"] = i.function>
 			</cfif>
-			<cfif i.keyExists("line")>
-				<cfset v.location["start_line"] = i.line>
-				<cfset v.location["end_line"] = i.line>
+			<cfif i.keyExists("line") AND isValid("integer", i.line)>
+				<cfset v.location["start_line"] = javaCast("int", i.line)>
+				<cfset v.location["end_line"] = javaCast("int", i.line)>
 			<cfelse>
-				<cfset v.location["end_line"] = 0>
+				<cfset v.location["start_line"] = javaCast("int", 1)>
 			</cfif>
 			<cfset local.cveRaw = "#v.location.file#:#v.location.start_line#">
 			<cfif i.keyExists("column")>
@@ -400,6 +522,7 @@
 				<cfset local.cveRaw &= ":#i.context#">
 			</cfif>
 			<cfset v["cve"] = hash(local.cveRaw, "SHA-256") & ":" & v.scanner.id>
+			<cfset v["id"] = hash(v.cve, "SHA-256")>
 			<cfset v.location["dependency"] = {}>
 			<cfset arrayAppend(v.identifiers, {"type"="fixinator_scanner_id", "name"="Fixinator Scanner ID: #i.id#", "value"=i.id, "url"="https://fixinator.app/"})>
 			<cfif i.keyExists("link") AND len(i.link)>
@@ -445,6 +568,95 @@
 			</BugCollection>
 		</cfsavecontent>
 		<cfreturn xml>
+	</cffunction>
+
+	<cffunction name="generateSarifReport" returntype="string" output="false">
+		<cfargument name="data">
+		<cfset var sarif = {
+			"$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+			"version": "2.1.0",
+			"runs": []
+		}>
+		<cfset var run = {}>
+		<cfset var i = "">
+		<cfset var rule = "">
+		<cfset var rules = {}>
+		<cfset var result = "">
+		<cfset var location = "">
+		
+		<cfset run["tool"] = { "driver" = {"name"="Fixinator", "rules":[], "version"=data.fixinator_client_version, "informationUri"="https://fixinator.app/"}}>
+		<cfset run.tool.driver["fullName"] = run.tool.driver.name & " " & run.tool.driver.version>
+		<cfset run["results"] = []>
+		<cfset run["automationDetails"] = {"id":"fixinator/" & reReplace(arguments.data.timestamp, "[^0-9]", "", "ALL")}>
+		<!--- 
+			docs: https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/sarif-support-for-code-scanning#sarif-output-file-examples
+			validator: https://sarifweb.azurewebsites.net/
+		 --->
+		<cfloop array="#arguments.data.results#" index="i">
+			<cfset rule = { "id": "fixinator-#i.scanner#-#i.id#-s#i.severity#-c#i.confidence#" }>
+			<cfif NOT rules.keyExists(rule.id)>
+				<cfset rule["properties"] = {}>
+				<cfset rule["shortDescription"] = {"text":i.description}>
+				<cfset rule["fullDescription"] = rule.shortDescription>
+				<cfset rule["help"] = rule.shortDescription>
+				<cfset rule["name"] = replace(i.title, " ", "", "ALL")>
+				<cfset rule.properties["name"] = rule.name>
+				<cfif i.severity IS 3>
+					<cfset rule.properties["problem.severity"] = "error">
+				<cfelseif i.severity IS 2>
+					<cfset rule.properties["problem.severity"] = "warning">
+				<cfelse>
+					<cfset rule.properties["problem.severity"] = "recommendation">
+				</cfif>
+				<cfif i.keyExists("confidence") AND isNumeric(i.confidence)>
+					<cfif i.severity IS 3>
+						<cfset rule.properties["precision"] = "high">
+					<cfelseif i.severity IS 2>
+						<cfset rule.properties["precision"] = "medium">
+					<cfelse>
+						<cfset rule.properties["precision"] = "low">
+					</cfif>
+				</cfif>
+				<cfset rule["helpUri"] = "https://foundeo.com/security/guide/">
+				<cfif i.keyExists("link") AND len(i.link)>
+					<cfset rule.helpUri = i.link>
+				</cfif>
+				<cfset arrayAppend(run.tool.driver.rules, rule)>
+				<cfset rules[rule.id] = rule>
+			</cfif>
+			<cfset result = {"ruleId":rule.id, "message":{"text":i.category & ": " & i.message}, "locations":[]}>
+			<cfset location = {"physicalLocation": {"artifactLocation":{"uri":""}}}>
+			
+			<cfif i.keyExists("path")>
+				<cfset local.p = i.path>
+				<cfif left(local.p, 1) IS "/">
+					<cfset local.p = replace(local.p, "/", "", "ONE")>
+				</cfif>
+				<cfset location.physicalLocation.artifactLocation.uri = local.p>
+			</cfif>
+			<cfset location.physicalLocation["region"] = {"startLine":1, "startColumn":1, "endLine":1, "endColumn":1}>
+			<cfif i.keyExists("line") AND isValid("integer", i.line)>
+				<cfset location.physicalLocation.region.startLine = javaCast("int", i.line)>
+				<cfset location.physicalLocation.region.endLine = javaCast("int", i.line)>
+			</cfif>
+			<cfif i.keyExists("context") AND len(i.context)>
+				<cfset location.physicalLocation.region["snippet"] = {"text":i.context}>
+			</cfif>
+			<cfset arrayAppend(result.locations, location)>
+			<cfset local.fingerPrintRaw = "#location.physicalLocation.artifactLocation.uri#:#location.physicalLocation.region.startLine#">
+			<cfif i.keyExists("column")>
+				<cfset local.fingerPrintRaw &= ":#i.column#">
+			</cfif>
+			<cfif i.keyExists("context")>
+				<cfset local.fingerPrintRaw &= ":#i.context#">
+			</cfif>
+			<cfset result["partialFingerprints"] = {"primaryLocationLineHash":"#hash(local.fingerPrintRaw, "SHA-256")#:#location.physicalLocation.region.startLine#"}>
+			
+			<cfset arrayAppend(run.results, result)>
+		</cfloop>
+		<cfset arrayAppend(sarif.runs, run)>
+		<!---<cfset sarif["fixinator"] = arguments.data>--->
+		<cfreturn serializeJSON(sarif)>
 	</cffunction>
 
 	<cffunction name="getClassNameFromFilePath" returntype="string" output="false">

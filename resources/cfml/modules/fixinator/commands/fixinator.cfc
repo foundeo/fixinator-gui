@@ -15,10 +15,35 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 	property name="shell" inject="shell";
 
 
+	//used for validation to avoid typos
+	variables.supportedArgs = ["path", 
+		"resultFile",
+		"resultFormat",
+		"verbose",
+		"listBy",
+		"severity",
+		"confidence",
+		"ignoreScanners",
+		"autofix",
+		"failOnIssues",
+		"debug",
+		"listScanners",
+		"ignorePaths",
+		"ignoreExtensions",
+		"gitLastCommit",
+		"gitChanged",
+		"engines",
+		"includeScanners",
+		"configFile",
+		"goals",
+		"json",
+		"forceLocal"
+	];
+
 	/**
 	* @path.hint A file or directory to scan
 	* @resultFile.hint A file path to write the results to - see resultFormat
-	* @resultFormat.hint The format to write the results in [json,html,pdf,junit,findbugs,sast,csv]
+	* @resultFormat.hint The format to write the results in [json,html,pdf,junit,findbugs,sast,csv,sarif]
 	* @resultFormat.optionsUDF resultFormatComplete
 	* @verbose.hint When false limits the output
 	* @listBy.hint Show results by type or file
@@ -26,24 +51,62 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 	* @severity.optionsUDF severityComplete
 	* @confidence.hint The minimum confidence level none, low, medium or high
 	* @confidence.optionsUDF confidenceComplete
-	* @ignoreScanners.hint A comma seperated list of scanner ids to ignore
+	* @ignoreScanners.hint A comma separated list of scanner ids to ignore
 	* @autofix.hint Use either off, prompt or automatic
 	* @failOnIssues.hint Determines if an exit code is set to 1 when issues are found.
 	* @debug.hint Enable debug mode
 	* @listScanners.hint List the types of scanners that are enabled, enabled automatically when verbose=true
 	* @ignorePaths.hint A globber paths pattern to exclude
+	* @ignoreExtensions.hint A list of extensions to exclude
+	* @gitLastCommit.hint Scan only files changed in the last git commit
+	* @gitChanged.hint Scan only files changed since the last commit in the working copy
+	* @engines.hint A list of engines your code runs on, eg: lucee@5,adobe@2023 default any
+	* @includeScanners.hint A comma separated list of scanner ids to scan, all others ignored
+	* @configFile.hint A path to a .fixinator.json file to use
+	* @goals.hint A list of goals for scanning [compatibility,security], default: security
+	* @goals.optionsUDF goalsComplete
+	* @json.hint When true outputs results to the console as JSON
+	* @forceLocal.hint When true requires that the scan run locally with enterprise version
 	**/
-	function run( string path=".", string resultFile, string resultFormat="json", boolean verbose=true, string listBy="type", string severity="default", string confidence="default", string ignoreScanners="", autofix="off", boolean failOnIssues=true, boolean debug=false, boolean listScanners=false, string ignorePaths="")  {
+	function run(
+        string path=".",
+        string resultFile,
+        string resultFormat="",
+        boolean verbose=true,
+        string listBy="type",
+        string severity="default",
+        string confidence="default",
+        string ignoreScanners="",
+        autofix="off",
+        boolean failOnIssues=true,
+        boolean debug=false,
+        boolean listScanners=false,
+        string ignorePaths="",
+        string ignoreExtensions="",
+		boolean gitLastCommit=false,
+		boolean gitChanged=false,
+		string engines="",
+		string includeScanners="",
+		string configFile="",
+		string goals="security",
+		boolean json=false,
+		boolean forceLocal=false
+    )  {
 		var fileInfo = "";
 		var severityLevel = 1;
 		var confLevel = 1;
 		var config = {};
 		var toFix = [];
 		var paths = [];
+		var isEnterprise = false;
+		var arg = "";
+		if (arguments.json) {
+			arguments.verbose=false;
+		}
 		if (arguments.verbose) {
 			//arguments.listScanners = true;
 			
-			print.greenLine("fixinator v#fixinatorClient.getClientVersion()# built by Foundeo Inc.").line();
+			print.greenLine("fixinator client v#fixinatorClient.getClientVersion()# built by Foundeo Inc.").line();
 			print.grayLine("    ___                      _             ");
 			print.grayLine("   / __)                    | |            ");		
 			print.grayLine(" _| |__ ___  _   _ ____   __| |_____  ___  ");
@@ -54,23 +117,61 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 			print.line();
 		}
 
+		try {
+			var enterpriseInstance = new fixinatorapi.app.models.fixinator();
+			if (arguments.verbose) {
+				print.grayLine("Fixinator Enterprise v#enterpriseInstance.getVersion()# Detected");
+			}
+			fixinatorClient.setFixinatorEnterpriseInstance(enterpriseInstance);
+			if (fixinatorClient.getMaxPayloadSize() == (1024*640)) {
+				//increase default for enterprise version to 2mb, can be overridden in settings
+				fixinatorClient.setMaxPayloadSize(2*1024*1024);
+			}
+			isEnterprise = true;
+		} catch(any entErr) {
+			//not using enterprise version
+			if (arguments.forceLocal) {
+				rethrow;
+			} else if (arguments.debug) {
+				print.grayLine("Debug: Failed to Load Enterprise Instance: #entErr.message#");
+			}
+		}
 
+		if (arguments.forceLocal) {
+			fixinatorClient.setForceLocal(true);
+			if (!isEnterprise) {
+				error("Enterprise version was not loaded and forceLocal was specified");
+				setExitCode(1);
+				return;
+			}
+		}
+
+		//validate arguments
+		for (arg in arguments) {
+			if (!arrayFindNoCase(variables.supportedArgs, arg)) {
+				print.boldRedLine("Invalid argument: #reReplace(arg, '[^a-zA-Z0-9]', '', 'ALL')# passed to fixinator.");
+				print.redLine("Type help fixinator to see the supported arguments.");
+				setExitCode(1);
+				return;
+			}
+		}
 
 		if (configService.getSetting("modules.fixinator.api_key", "UNDEFINED") != "UNDEFINED") {
 			fixinatorClient.setAPIKey(configService.getSetting("modules.fixinator.api_key", "UNDEFINED"));
 		}
 
-		if (fixinatorClient.getAPIKey() == "UNDEFINED") {
+		if (!fixinatorClient.hasFixinatorEnterpriseInstance() && fixinatorClient.getAPIKey() == "UNDEFINED") {
 			print.boldOrangeLine("Missing Fixinator API Key");
 			print.orangeLine("  Set via commandbox: config set modules.fixinator.api_key=YOUR_API_KEY");
 			print.orangeLine("  Or set an environment variable FIXINATOR_API_KEY=YOUR_API_KEY");
 			print.line();
-			print.line("For details please visit: https://fixinator.app/");
+			print.line("An API Key is required, unless you are using the Enterprise Version of Fixinator.");
+			print.line("  For details please visit: https://fixinator.app/");
 			print.line();
 			if (isRunningInCI()) {
 				//in CI we don't want to prompt
-				print.line("Detected CI Envrionment. Please add the FIXINATOR_API_KEY as a secure environment variable to your CI platform.");
-
+				print.line("Detected CI Environment. Please add the FIXINATOR_API_KEY as a secure environment variable to your CI platform.");
+				
 				if (isTravisCI()) {
 					print.line("Documentation: https://github.com/foundeo/fixinator/wiki/Running-Fixinator-on-Travis-CI");
 				}
@@ -91,26 +192,30 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 					print.line("Documentation: https://github.com/foundeo/fixinator/wiki/Running-Fixinator-on-Jenkins");
 				}
 
+				print.line();
+				print.line("Running the Enterprise Version of Fixinator?");
+				printEnterpriseInstallInstructions();
 
 				setExitCode(1);
 				return;
+			} 
+			
+
+			print.line();
+			print.line("To request a free trial api key, please go here: https://fixinator.app/try/");
+			local.answer = ask(message="Would you like to open https://fixinator.app/try/ in your browser now? [y/n]: ");
+			if (left(local.answer, 1) == "y") {
+				command("browse").params(URI="https://fixinator.app/try/").run();
 			} else {
-
-			}
-			local.email = ask(message="Do you want to request a free key? Please enter your email: ");
-			if (isValid("email", local.email)) {
-				local.phone = ask(message="Phone Number (Optional): ");
-				cfhttp(method="POST", url="https://foundeo.us1.list-manage.com/subscribe/post?u=c10e46f0371b0cedc2340d2d4&id=37b8e52f1a", result="local.httpResult") {
-					cfhttpparam(name="EMAIL", value=local.email, type="formfield");
-					cfhttpparam(name="PHONE", value=local.phone, type="formfield");
-				}
-				if (local.httpResult.statusCode contains "200") {
-					print.boldGreenLine("Thanks, your request has been submitted.");
-				} else {
-					print.boldRedLine("Looks like there was an error submitting your request, please contact Foundeo inc. directly.");
+				print.line();
+				local.answer = ask(message="Do you have a Fixinator Enterprise Version License? [y/n]: ");
+				if (left(local.answer, 1) == "y") {
+					print.line("You do not need an API key to run the Fixinator Enterprise Version Locally.");
+					printEnterpriseInstallInstructions();
 				}
 			}
-
+			print.line();
+			print.line("Exiting Fixinator, please try again once you have an api key");
 			return;
 		}
 
@@ -119,7 +224,7 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 			fixinatorClient.setAPIURL(configService.getSetting("modules.fixinator.api_url", "UNDEFINED"));
 		}
 
-		if (fixinatorClient.isCloudAPIURL() && configService.getSetting("modules.fixinator.accept_policy", "UNDEFINED") == "UNDEFINED") {
+		if (!fixinatorClient.hasFixinatorEnterpriseInstance() && fixinatorClient.isCloudAPIURL() && configService.getSetting("modules.fixinator.accept_policy", "UNDEFINED") == "UNDEFINED" && !arguments.json) {
 			print.line();
 			print.line("Fixinator will send source code to: " & fixinatorClient.getAPIURL());
 			print.line("for scanning. The code is kept in RAM during scanning and is not persisted.");
@@ -142,6 +247,22 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 			
 		}
 
+		if (!fixinatorClient.hasFixinatorEnterpriseInstance() && fixinatorClient.isCloudAPIURL() && left(fixinatorClient.getAPIKey(), 1) != "f") {
+			var maskedKey = left(fixinatorClient.getAPIKey(), 4);
+			if (len(fixinatorClient.getAPIKey()) > 4) {
+				maskedKey &= repeatString("*", len(fixinatorClient.getAPIKey())-4);
+			}
+			if (fixinatorClient.getAPIKey() == "UNDEFINED") {
+				maskedKey = "UNDEFINED";
+			}
+			print.line();
+			print.line("Invalid License Key(#maskedKey#) for API Server: " & fixinatorClient.getAPIURL());
+			print.line("Running the Enterprise Version?");
+			printEnterpriseInstallInstructions();
+			setExitCode(1);
+			return;
+		}
+
 		
 
 		if (configService.getSetting("modules.fixinator.max_payload_size", "UNDEFINED") != "UNDEFINED") {
@@ -152,21 +273,91 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 			fixinatorClient.setMaxPayloadFileCount(configService.getSetting("modules.fixinator.max_payload_file_count", "UNDEFINED"));
 		}
 
-		if (arguments.verbose) {
+		if (configService.getSetting("modules.fixinator.api_timeout", "UNDEFINED") != "UNDEFINED") {
+			fixinatorClient.setAPITimeout(configService.getSetting("modules.fixinator.api_timeout", "35"));
+		}
+
+		if (configService.getSetting("modules.fixinator.max_concurrency", "UNDEFINED") != "UNDEFINED") {
+			fixinatorClient.setMaxConcurrency(configService.getSetting("modules.fixinator.max_concurrency", "8"));
+		}
+
+		if (arguments.verbose && !fixinatorClient.hasFixinatorEnterpriseInstance()) {
 			print.greenLine("Fixinator API Server: #fixinatorClient.getAPIURL()#");
 		}
 
 		if (arguments.debug) {
 			fixinatorClient.setDebugMode(true);
-			print.greenLine("✓ DEBUG MODE ENABLED: #fixinatorClient.isDebugModeEnabled()#");
+			if (arguments.verbose) {
+				print.greenLine("✓ DEBUG MODE ENABLED: #fixinatorClient.isDebugModeEnabled()#");
+				print.greenLine("   ↳ #expandPath("{lucee-web}/logs/fixinator-client-debug.log")#");
+			}
 		}
 
-
-		if (arguments.path contains "*" || arguments.path contains "," || len(arguments.ignorePaths)) {
-			local.newPath = arguments.path.listMap( (p) => fileSystemUtil.resolvePath( p ) );
+		
+		if (arguments.gitLastCommit || arguments.gitChanged) {
+			//we are going to use git data to build file list
+			if (arguments.gitLastCommit && arguments.gitChanged) {
+				//this might be handy to enable 
+				error("You cannot enable both gitLastCommit and gitChanged at the same time");
+			}
+			try {
+				if (arguments.gitLastCommit && arguments.verbose) {
+					print.yellowLine("Scanning only files changed in the last git commit.");
+				} else if (arguments.verbose) {
+					print.yellowLine("Scanning only files changed since the last git commit.");
+				}
+				arguments.path = fileSystemUtil.resolvePath( arguments.path );
+				local.gitChanges = getGitChanges(path=arguments.path, lastCommit=arguments.gitLastCommit);
+				for (local.change in local.gitChanges) {
+					if (change.type == "DELETE") {
+						if (arguments.verbose) {
+							print.redLine("  D: #change.previousPath#");
+						}
+					} else if (change.type == "MODIFY") {
+						if (arguments.verbose) {
+							print.greenLine("  M: #change.path#");
+						}
+						arrayAppend(paths, getDirectoryFromPath(arguments.path) & change.path);
+					} else if (change.type == "ADD") {
+							if (arguments.verbose) {
+								print.greenLine("  A: #change.path#");
+							}
+							arrayAppend(paths, getDirectoryFromPath(arguments.path) & change.path);
+					} else {
+						if (arguments.verbose) {
+							print.yellowLine("  #change.type#: #change.path# #change.previousPath#");
+						}
+						arrayAppend(paths, getDirectoryFromPath(arguments.path) & change.path);
+					}
+				}
+				
+				if (arrayLen(paths) == 0) {
+					print.redLine("No scannable paths found.");
+					return;
+				} else if (len(arguments.ignorePaths)) {
+					error("Sorry ignorePaths is not currently supported with gitLastCommit or gitChanged");
+				}
+			} catch (any err) {
+				error("Error checking for git files, make sure this is a git repository and path is pointing to the root of it: #err.message# - #err.detail# -- #err.stacktrace#")
+			}			
+		} else if (arguments.path contains "*" || arguments.path contains "," || len(arguments.ignorePaths)) {
+			local.newPath = arguments.path.listMap( (p) => {
+				p = fileSystemUtil.resolvePath( p );
+				if ( directoryExists( p ) ) {
+					return p & "**";
+				}
+				return p;
+			} );
 			local.glob = globber(local.newPath);
 			if ( val(listFirst(shell.getVersion(), ".")) GTE 5 ) {
-				local.glob = local.glob.setExcludePattern(arguments.ignorePaths);
+				local.ignorePathPatterns = arguments.ignorePaths.listMap( ( p ) => {
+					p = fileSystemUtil.resolvePath( p );
+					if ( directoryExists( p ) ) {
+						return p & "**";
+					}
+					return p;
+				} );
+				local.glob = local.glob.setExcludePattern(local.ignorePathPatterns);
 			} else if (len(arguments.ignorePaths)) {
 				error("You specified ignorePaths, but you are using an old version of CommandBox: #shell.getVersion()#. Upgrade to the latest version >=5");
 			}
@@ -199,12 +390,13 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 
 		
 		
+		
 
 
 
 		if (!listFindNoCase("warn,low,medium,high", arguments.severity)) {
 			if (arguments.severity !="default") {
-				print.redLine("Invalid minimum severity level, use: warn,low,medium,high");
+				error("Invalid minimum severity level, use: warn,low,medium,high");
 				return;
 			}
 		} else {
@@ -213,7 +405,7 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 
 		if (!listFindNoCase("none,low,medium,high", arguments.confidence)) {
 			if (arguments.confidence != "default") {
-				print.redLine("Invalid minimum confidence level, use: none,low,medium,high");
+				error("Invalid minimum confidence level, use: none,low,medium,high");
 				return;	
 			}
 			
@@ -225,16 +417,40 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 			config.ignoreScanners = listToArray(replace(arguments.ignoreScanners, " ", "", "ALL"));
 		}
 
+		if (len(arguments.ignoreExtensions)) {
+			config.ignoreExtensions = listToArray(replace(arguments.ignoreExtensions, " ", "", "ALL"));
+		}
+
+		if (len(arguments.engines)) {
+			config.engines = listToArray(replace(arguments.engines, " ", "", "ALL"));
+		}
+
+		if (len(arguments.includeScanners)) {
+			config.includeScanners = listToArray(replace(arguments.includeScanners, " ", "", "ALL"));
+		}
+		if (len(arguments.goals)) {
+			config["goals"] = listToArray(replace(arguments.goals, " ", "", "ALL"));
+		}
+
+		if (len(arguments.configFile)) {
+			arguments.configFile = fileSystemUtil.resolvePath( arguments.configFile );
+			if (!fileExists(arguments.configFile)) {
+				error("Sorry: configFile was not found: #arguments.configFile#");
+				return;	
+			} else {
+				config.configFile = arguments.configFile;
+			}
+		}
 
 		if (!fileExists(arguments.path) && !directoryExists(arguments.path) && !arrayLen(paths)) {
-			print.boldRedLine("Sorry: #arguments.path# is not a file or directory.");
+			error("Sorry: #arguments.path# is not a file or directory.");
 			return;
 		}
 
 		fileInfo = getFileInfo(arguments.path);
 		
 		if (!fileInfo.canRead) {
-			print.boldRedLine("Sorry: No read permission for source path");
+			error("Sorry: No read permission for source path");
 			return;
 		}
 
@@ -279,13 +495,19 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 				//show progress bars
 				print.line().toConsole();
 				progressBar.clear();
-				job.start("Scanning " & arguments.path);
+				//job.start("Scanning " & arguments.path);
+				print.greenLine("Scanning " & arguments.path);
+				if (arguments.debug && arrayLen(paths)) {
+					for (local.p in paths) {
+						print.greenLine(" " & local.p);
+					}
+				}
 				progressBar.update( percent=0 );
-				local.results = fixinatorClient.run(path=arguments.path,config=config, progressBar=progressBar, paths=paths);	
+				local.results = fixinatorClient.run(path=arguments.path, config=config, progressBar=progressBar, paths=paths);	
 				progressBar.clear();
 			} else {
 				//no progress bar or interactive job output
-				local.results = fixinatorClient.run(path=arguments.path,config=config);	
+				local.results = fixinatorClient.run(path=arguments.path, config=config, paths=paths);	
 			}
 			
 
@@ -303,6 +525,7 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 				if (structKeyExists(err, "detail")) {
 					print.whiteLine(err.detail);	
 				}
+				error("Fixinator Exiting Due to Error");
 				return;
 			} else {
 				rethrow;
@@ -310,25 +533,53 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 		} finally {
 			if (arguments.verbose) {
 				progressBar.clear();
-				job.complete();	
+				//job.complete( dumpLog=true );	
 			}
 		}
 		
 		if (len(arguments.resultFile)) {
 			local.resultIndex = 0;
+			//default resultFormat to the file extension if supported
+			if (len(arguments.resultFormat) == 0) {
+				if (listFindNoCase("pdf,html,csv,json", listLast(arguments.resultFile, "."))) {
+					arguments.resultFormat = lcase(listLast(arguments.resultFile, "."));
+				} else {
+					//defaults to json
+					arguments.resultFormat = "json";
+				}
+			}
+			local.results["fixinatorArguments"] = duplicate(arguments);
+			local.results["fixinatorArguments"]["pwd"] = shell.pwd();
 			//allow a list of formats and file paths
 			for (local.rFormat in listToArray(arguments.resultFormat)) {
 				local.resultIndex++;
 				local.rFile = listGetAt(arguments.resultFile, local.resultIndex);
 				local.rFile = fileSystemUtil.resolvePath( local.rFile );	
-				fixinatorReport.generateReport(resultFile=local.rFile, format=local.rFormat, listBy=arguments.listBy, data=local.results);	
+				fixinatorReport.generateReport(resultFile=local.rFile, format=local.rFormat, listBy=arguments.listBy, data=local.results, fixinatorClientVersion=fixinatorClient.getClientVersion());	
 			}
 		}
 
+		if (arguments.json) {
+			print.line(serializeJSON(local.results));
+			if (arrayLen(local.results.results) > 0 ) {
+				if (arguments.failOnIssues) {
+					setExitCode( 1 );	
+				}
+			}
+			return;
+		}
 
 		if (arrayLen(local.results.results) == 0 && arrayLen(local.results.warnings) == 0)   {
-			print.line().boldGreenLine("✓ 0 Issues Found");
+			print.line().boldGreenLine("0 Issues Found");
 			if (arguments.verbose) {
+				print.line();      
+				print.greenLine("              //");
+				print.greenLine("             //"); 
+				print.greenLine("            //");
+				print.greenLine("       \\  //");   
+				print.greenLine("        \\//");
+				
+				print.line();
 				if (local.results.config.minSeverity != "low" || local.results.config.minConfidence != "low") {
 					print.line().line("Tip: For additional results try decreasing the severity or confidence level to medium or low");
 					print.line("For example: box fixinator confidence=low path=/some/file.cfm");
@@ -439,29 +690,46 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 							print.greyLine("Possible Fixes:");
 							local.fixIndex = 0;
 							local.fixOptions = "";
+							local.queryparamFix = 0;
 							for (local.fix in local.i.fixes) {
 								local.fixIndex++;
 								local.fixOptions = listAppend(local.fixOptions, local.fixIndex);
 								print.greyLine("        "&local.fixIndex&") "&local.fix.title & ": " & trim(local.fix.fixCode) );
+								if ( findNoCase('cfsqltype="cf_sql_varchar"', local.fix.fixCode) ) {
+									local.queryparamFix = local.fixIndex;
+								}
 							}
 							if (arguments.autofix == "prompt") {
 								print.toConsole();
 								/*
 								local.fix = multiselect()
-								    .setQuestion( 'Do you want to fix this?' )
-    								.setOptions( listAppend(local.fixOptions, "skip") )
-    								.ask();
-    							*/
-    							local.fixOptions = "1-#arrayLen(local.i.fixes)#";
-    							if (arrayLen(local.i.fixes) == 1) {
-    								local.fixOptions = "1";
-    							}
-    							local.fix = ask(message="Do you want to fix this? Enter [#local.fixOptions#] or no: ");
+									.setQuestion( 'Do you want to fix this?' )
+									.setOptions( listAppend(local.fixOptions, "skip") )
+									.ask();
+								*/
+								local.fixOptions = "1-#arrayLen(local.i.fixes)#";
+								if (arrayLen(local.i.fixes) == 1) {
+									local.fixOptions = "1";
+								}
+
+								if (local.queryparamFix == 0) {
+									local.fix = ask(message="Do you want to fix this? Enter [#local.fixOptions#] or no: ");
+								} else {
+									local.fix = ask(message="Do you want to fix this? Enter [#local.fixOptions#] or cf_sql_whatever or no: ");
+								}
+
+								
 
 
 								if (isNumeric(local.fix) && local.fix >= 1 && local.fix <= arrayLen(local.i.fixes)) {
 									toFix.append({"fix":local.i.fixes[local.fix], "issue":local.i});
-								} 
+								} else if (len(local.fix) && !isNumeric(local.fix) && local.queryparamFix != 0 && !isBoolean(local.fix)) {
+									//fixing with a custom cfsqltype
+									local.customFix = duplicate( local.i.fixes[local.queryparamFix] );
+									local.customFix.fixCode = replaceNoCase(local.customFix.fixCode, 'cfsqltype="cf_sql_varchar"', 'cfsqltype="#local.fix#"');
+									arrayAppend(local.i.fixes, local.customFix);
+									toFix.append({"fix":local.customFix, "issue":local.i});
+								}
 
 							} else if (arguments.autofix == "auto" || arguments.autofix == "automatic") {
 								toFix.append({"fix":local.i.fixes[1], "issue":local.i});
@@ -476,23 +744,7 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 				}
 			}
 
-			if (arguments.listScanners && local.results.keyExists("categories")) {
-				print.line();
-				print.line("Results by Scanner (confidence=#local.results.config.minConfidence#, severity=#local.results.config.minSeverity#):");
-				for (local.cat in local.results.categories) {
-					local.issues = 0;
-					for (local.i in local.results.results) {
-						if (local.i.id == local.cat) {
-							local.issues++;
-						}
-					}
-					if (local.issues == 0) {
-						print.greenLine("  ✓ " & local.results.categories[cat].name & " [" & cat & "]" );
-					} else {
-						print.redLine("  ! " & local.results.categories[cat].name & " [" & cat & "] (" & local.issues & ")"  );
-					}
-				}
-			}
+			
 
 			/*
 			for (local.i in local.results.results) {
@@ -509,9 +761,18 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 			}*/
 			if (arguments.verbose && arrayLen(local.results.warnings)) {
 				print.line();
-				print.boldOrangeLine("WARNINGS");
+				print.boldYellowLine("WARNINGS");
+				local.lastWarning = "";
 				for (local.w in local.results.warnings) {
-					print.grayLine(serializeJSON(local.w));
+					if (isStruct(local.w) && local.w.keyExists("message") && local.w.keyExists("path")) {
+						if (local.lastWarning != local.w.message) {
+							print.grayLine(local.w.message);
+						}
+						print.grayLine("  " & replaceNoCase(local.w.path, getDirectoryFromPath(arguments.path), ""));
+					} else {
+						print.grayLine(serializeJSON(local.w));
+					}
+					
 				}
 			}
 
@@ -524,20 +785,38 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 			}
 
 
-			if (arguments.debug) {
-				local.debugLogFile = expandPath("{lucee-web}/logs/fixinator-client-debug.log");
-				print.line();
-				if (fileExists(local.debugLogFile)) {
-					print.boldGreenLine("Debug information logged to: #local.debugLogFile#");
+			
+
+			
+			
+		}
+		
+		if (arguments.listScanners && local.results.keyExists("categories")) {
+			print.line();
+			print.line("Results by Scanner (confidence=#local.results.config.minConfidence#, severity=#local.results.config.minSeverity#):");
+			for (local.cat in local.results.categories) {
+				local.issues = 0;
+				for (local.i in local.results.results) {
+					if (local.i.id == local.cat) {
+						local.issues++;
+					}
+				}
+				if (local.issues == 0) {
+					print.greenLine("  ✓ " & local.results.categories[cat].name & " [" & cat & "]" );
 				} else {
-					print.boldRedLine("Expected debug information to be logged to: #local.debugLogFile# but the file does not exist.");
+					print.redLine("  ! " & local.results.categories[cat].name & " [" & cat & "] (" & local.issues & ")"  );
 				}
 			}
+		}
 
-			if (arguments.failOnIssues) {
-				setExitCode( 1 );	
+		if (arguments.debug) {
+			local.debugLogFile = expandPath("{lucee-web}/logs/fixinator-client-debug.log");
+			print.line();
+			if (fileExists(local.debugLogFile)) {
+				print.boldGreenLine("Debug information logged to: #local.debugLogFile#");
+			} else {
+				print.boldRedLine("Expected debug information to be logged to: #local.debugLogFile# but the file does not exist.");
 			}
-			
 		}
 
 		if (fixinatorClient.hasClientUpdate()) {
@@ -547,11 +826,16 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 		}
 
 
+		if (arrayLen(local.results.results) > 0 ) {
+			if (arguments.failOnIssues) {
+				setExitCode( 1 );	
+			}
+		}
 
 	}
 
 	function resultFormatComplete() {
-		return [ 'html', 'json', 'pdf', 'junit', 'findbugs', 'sast', 'csv' ];
+		return [ 'html', 'json', 'pdf', 'junit', 'findbugs', 'sast', 'csv', 'sarif' ];
 	}
 
 	function confidenceComplete() {
@@ -562,6 +846,20 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 		return [ 'low', 'medium', 'high', 'warn' ];
 	}
 
+	function goalsComplete() {
+		return [ 'security', 'compatibility', 'security,compatibility' ];
+	}
+
+	private function printEnterpriseInstallInstructions() {
+		print.boldLine("Perform one of these steps to setup the enterprise version:");
+		print.line("	* Install the fixinator enterprise command (version 6 and up): ");
+		print.line("		box install c:\temp\fixinator-enterprise-x.y.z.zip")
+		print.line("	* Or if running your own Fixinator server set the FIXINATOR_API_URL environment variable or run:");
+		print.line("		box config set modules.fixinator.api_url=http://127.0.0.1:48443/scan/");
+		print.line();
+		print.line("See instructions.txt located in your fixinator-enterprise.zip file for details.");
+		print.line("The zip file can be downloaded from your customer account on foundeo.com");
+	}
 
 	private boolean function isRunningInCI() {
 		var env = server.system.environment;
@@ -603,6 +901,55 @@ component extends="commandbox.system.BaseCommand" excludeFromHelp=false {
 	private boolean function isJenkins() {
 		var env = server.system.environment;
 		return env.keyExists("BUILD_NUMBER") && len(env.BUILD_NUMBER) && env.keyExists("JENKINS_HOME") && len(env.JENKINS_HOME);
+	}
+
+	private function getGitChanges(path, lastCommit=true) {
+		var gitDir = path & ".git/";
+		var gitDirFileObject = createObject("java", "java.io.File").init(gitDir);
+		var gitRepo = "";
+		var reader = "";
+		var results = [];
+		var result = "";
+		var disIO = createObject("java", "org.eclipse.jgit.util.io.DisabledOutputStream").INSTANCE;
+		if (!gitDirFileObject.exists()) {
+			throw(message="The path: #path# is not a git repository root path");
+		}
+		gitRepo = createObject("java", "org.eclipse.jgit.storage.file.FileRepositoryBuilder").create(gitDirFileObject);
+
+		reader = gitRepo.newObjectReader();
+
+		if (lastCommit) {
+			oldTreeIter = createObject("java", "org.eclipse.jgit.treewalk.CanonicalTreeParser");
+			oldTree = gitRepo.resolve( "HEAD~1^{tree}" );
+			oldTreeIter.reset( reader, oldTree );
+			newTreeIter = createObject("java", "org.eclipse.jgit.treewalk.CanonicalTreeParser");
+			
+			newTree = gitRepo.resolve( "HEAD^{tree}" );
+			newTreeIter.reset( reader, newTree );
+		} else {
+			oldTreeIter = createObject("java", "org.eclipse.jgit.treewalk.CanonicalTreeParser");
+			oldTree = gitRepo.resolve( "HEAD^{tree}" );
+			oldTreeIter.reset( reader, oldTree );
+			
+			newTreeIter = createObject("java", "org.eclipse.jgit.treewalk.FileTreeIterator").init(gitRepo);
+		}
+		
+
+		diffFormatter = createObject("java", "org.eclipse.jgit.diff.DiffFormatter").init( disIO );
+		diffFormatter.setRepository( gitRepo );
+		entries = diffFormatter.scan( oldTreeIter, newTreeIter );
+
+		for( entry in entries.toArray() ) {
+			result = {"type": entry.getChangeType().toString(), "path": "", "previousPath":""}
+			if (!isNull(entry.getNewPath())) {
+				result.path = entry.getNewPath().toString();
+			}
+			if (!isNull(entry.getOldPath())) {
+				result.previousPath = entry.getOldPath().toString();
+			}
+			arrayAppend(results, result);
+		}
+		return results;
 	}
 
 }

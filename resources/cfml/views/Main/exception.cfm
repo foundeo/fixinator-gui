@@ -4,7 +4,7 @@
 		<cfargument name="event">
 		<cfargument name="rc">
 		<cfargument name="prc">
-		<div class="subnav">
+		<div class="subnav container">
 			<button type="button" class="btn btn-outline btn-outline-brand btn-back">Back</button>
 		</div>
 		

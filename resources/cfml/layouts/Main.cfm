@@ -6,18 +6,20 @@
 	<title>Fixinator GUI</title>
   
 	<link rel="stylesheet" href="/assets/node_modules/roboto-fontface/css/roboto/roboto-fontface.css">
-	<link rel="stylesheet" href="/assets/node_modules/bootstrap-material-design/dist/css/bootstrap-material-design.min.css">
-  <link rel="stylesheet" href="/assets/node_modules/ace-diff/dist/ace-diff-dark.min.css">
+	<!---<link rel="stylesheet" href="/assets/node_modules/bootstrap-material-design/dist/css/bootstrap-material-design.min.css">--->
+  <link rel="stylesheet" href="/assets/node_modules/bootstrap/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/node_modules/ace-diff/dist/styles.css">
+  <link rel="stylesheet" href="/assets/node_modules/ace-diff/dist/styles-twilight.css">
 	<link rel="stylesheet" href="/assets/style.css">
   <link rel="icon" href="/assets/images/icon.png" type="image/png">
 </head>
-<body class="bg-dark">
+<body data-bs-theme="dark">
 
 
 	<header>
       
-      <nav id="top" class="navbar navbar-light fixed-top bg-brand">
-        <a class="navbar-brand" href="/" title="Fixinator"><img src="/assets/images/icon.png" alt="Fixinator" height="60" width="60"> Fixinator</a>
+      <nav id="top" class="navbar fixed-top bg-brand">
+        <div class="container"><a class="navbar-brand" href="/" title="Fixinator"><img src="/assets/images/icon.png" alt="Fixinator" height="60" width="60"> Fixinator</a></div>
         <!---
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="##navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
@@ -76,15 +78,21 @@
 </div>
 --->
 
-	
-  <script src="/assets/loader.js"></script>
-  <script src="/assets/node_modules/jquery/dist/jquery.min.js"></script>
-  <script src="/assets/node_modules/popper.js/dist/umd/popper.js"></script>
-	<script src="/assets/node_modules/bootstrap-material-design/dist/js/bootstrap-material-design.js"></script>
-  <script src="/assets/node_modules/ace-builds/src-min/ace.js"></script>
-  <script src="/assets/node_modules/ace-diff/dist/ace-diff.min.js"></script>
-  
-  <script src="/assets/scripts.js"></script>
+	<cfoutput>
+    <script src="/assets/loader.js" nonce="#encodeForHTMLAttribute(request.cspNonce)#"></script>
+    <script src="/assets/node_modules/jquery/dist/jquery.min.js" nonce="#encodeForHTMLAttribute(request.cspNonce)#"></script>
+    <!---<script src="/assets/node_modules/popper.js/dist/umd/popper.js"></script>--->
+    <!---<script src="/assets/node_modules/bootstrap-material-design/dist/js/bootstrap-material-design.js"></script>--->
+    <script src="/assets/node_modules/bootstrap/dist/js/bootstrap.bundle.min.js" nonce="#encodeForHTMLAttribute(request.cspNonce)#"></script>
+    <script src="/assets/node_modules/ace-builds/src-min/ace.js" nonce="#encodeForHTMLAttribute(request.cspNonce)#"></script>
+    <!---<script src="/assets/node_modules/ace-diff/dist/ace-diff.min.js" nonce="#encodeForHTMLAttribute(request.cspNonce)#"></script>--->
+    <script type="module" nonce="#encodeForHTMLAttribute(request.cspNonce)#">
+      import AceDiff from '/assets/node_modules/ace-diff/dist/index.mjs';
+      window.AceDiff = AceDiff;   // if other non-module scripts need it
+    </script>
+    
+    <script src="/assets/scripts.js" nonce="#encodeForHTMLAttribute(request.cspNonce)#"></script>
+  </cfoutput>
 </body>
 </html>
 </cfoutput>

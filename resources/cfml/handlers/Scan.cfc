@@ -39,7 +39,8 @@ component extends="coldbox.system.EventHandler"{
 		prc.scan = scanService.getScan(rc.scanID);
 		prc.project = projectService.getProject(rc.projectID);
 		prc.projects = projectService.getProjects();
-
+		prc.fixinatorClient = getInstance("FixinatorClient@fixinator");
+		
 	}
 
 	private function populateFixable(event, rc, prc) {

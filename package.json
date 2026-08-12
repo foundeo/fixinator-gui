@@ -1,12 +1,10 @@
 {
     "name": "Fixinator",
-    "version": "3.0.2",
+    "version": "6.1.1",
     "description": "Fixinator GUI App",
     "main": "index.js",
     "scripts": {
-        "start": "electron .",
-        "dist": "electron-builder --mac --win",
-        "dist-mac": "electron-builder --mac"
+        "start": "electron ."
     },
     "repository": {
         "type": "git",
@@ -18,12 +16,7 @@
     "author": "Foundeo Inc.",
     "license": "MIT",
     "devDependencies": {
-        "got": "^11.8.5",
-        "electron": "^22.3.25",
-        "electron-builder": "^24.6.4"
-    },
-    "dependencies": {
-        "find-java-home": "^1.2.2"
+        "electron": "^43.2.0"
     },
     "build": {
         "appId": "com.foundeo.fixinator-gui",

@@ -13,6 +13,11 @@ component extends="coldbox.system.EventHandler"{
 	function edit(event, rc, prc) {
 		param name="rc.projectID" type="uuid";
 		prc.project = projectService.getProject(rc.projectID);
+		prc.fixinatorJSON = "";
+		prc.fixinatorJSONPath = getDirectoryFromPath(prc.project.path) & ".fixinator.json";
+		if ( fileExists(prc.fixinatorJSONPath)) {
+			prc.fixinatorJSON = fileRead(prc.fixinatorJSONPath, "UTF-8");
+		}
 	}
 
 	function save(event, rc, prc) {

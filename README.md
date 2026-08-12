@@ -30,8 +30,14 @@ Go to the Applications folder, and right click on Fixinator and select Open.
 
 You can also run Fixinator GUI as a web application with CommandBox. Just download or clone this repo, and then run:
 
+#### Initializing the App
+
+You can either run `./build/init.sh` which will initialize 
+
+#### Starting the Local Server
+
     cd resources/cfml/
-    box server start 
+    box server start openBrowser=true
 
 This will open the application in a browser window instead of a native Windows or Mac app window.
 
@@ -39,10 +45,8 @@ This will open the application in a browser window instead of a native Windows o
 
 ### Windows
 
-Open the _Add Remove Programs_ from the Windows Control Panel, locate Fixinator and click Uninstall.
-
-Application data is stored in `C:\Users\UserName\AppData\Local\Programs\Fixinator` and configuration data in `C:\Users\UserName\AppData\Roaming\Fixinator` by default.
+Application data is stored in `C:\Users\UserName\AppData\Local\Programs\Fixinator` and configuration data in `C:\Users\UserName\AppData\Roaming\Fixinator` or `C:\Users\UserName\.fixinator-data\`.
 
 ### Mac
 
-Delete the Fixinator.app from the Applications folder. Configuration data is stored in `~/Library/Application Support/Fixinator`
+Configuration data is stored in `~/Library/Application Support/Fixinator` or `~/.fixinator-data/`

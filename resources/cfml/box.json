@@ -1,13 +1,13 @@
 {
     "dependencies":{
-        "coldbox":"^6.8.1"
+        "coldbox":"^8.1.0"
     },
     "installPaths":{
         "coldbox":"coldbox/"
     },
     "name":"FixinatorGUI",
     "slug":"fixinator-gui",
-    "version":"3.0.0",
+    "version":"6.1.0",
     "location":"",
     "scripts":{}
 }

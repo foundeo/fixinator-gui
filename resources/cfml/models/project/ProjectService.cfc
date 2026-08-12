@@ -113,6 +113,14 @@ component singleton extends="DataService" {
 							structDelete(projects[i].config, "ignoreScanners");
 						}
 					}
+					if (data.keyExists("includeScanners")) {
+						if (len(data.includeScanners)) {
+							projects[i].config["includeScanners"] = trimArray(listToArray(data.includeScanners));
+						} else if (projects[i].config.keyExists("includeScanners")) {
+							structDelete(projects[i].config, "includeScanners");
+						}
+					}
+
 					if (data.keyExists("config") && data.config.keyExists("ignorePaths")) {
 						projects[i].config["ignorePaths"] = data.config.ignorePaths;
 					} else if (data.keyExists("ignorePaths")) {
@@ -120,6 +128,20 @@ component singleton extends="DataService" {
 							projects[i].config["ignorePaths"] = trimArray(listToArray(trim(data.ignorePaths), chr(13)));
 						} else if (projects[i].config.keyExists("ignorePaths")) {
 							structDelete(projects[i].config, "ignorePaths");
+						}
+					}
+
+					if (data.keyExists("goals")) {
+						projects[i].config["goals"] = listToArray(data.goals);
+					}
+
+					if (data.keyExists("config") && data.config.keyExists("engines")) {
+						projects[i].config["engines"] = data.config.engines;
+					} else if (data.keyExists("engines")) {
+						if (len(data.engines)) {
+							projects[i].config["engines"] = trimArray(listToArray(trim(data.engines), chr(13)));
+						} else if (projects[i].config.keyExists("engines")) {
+							structDelete(projects[i].config, "engines");
 						}
 					}
 

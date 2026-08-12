@@ -1,4 +1,4 @@
-<div class="subnav">
+<div class="subnav container">
     <div class="">
         <a href="/" class="btn btn-outline btn-outline-brand">Back to Projects</a>
     </div>

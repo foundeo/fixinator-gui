@@ -3,5 +3,7 @@
 * need to modify this file
 */
 component{
+	this.sessionManagement = false;
+	this.clientStorage="memory";
 	abort;
 }

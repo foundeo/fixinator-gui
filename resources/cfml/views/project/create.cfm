@@ -1,4 +1,4 @@
-<div class="subnav">
+<div class="subnav container">
     <div class="">
         <a href="/" class="btn btn-outline btn-outline-brand">Back to Projects</a>
     </div>
@@ -10,13 +10,13 @@
     <cfoutput>
     <form action="#event.buildLink('project.save')#" method="POST">
     	<input type="hidden" name="id" value="#createUUID()#">
-    	<div class="form-group">
-    		<label for="name">Project Name:</label>
+    	<div class="mb-3">
+    		<label for="name" class="form-label">Project Name:</label>
     		<input type="text" name="name" class="form-control" required="required">
             <small class="form-text">The name of a chunk of code you want to scan.</small>
     	</div>
-    	<div class="form-group">
-        	<label for="path">Root File Path:</label>
+    	<div class="mb-3">
+        	<label for="path" class="form-label">Root File Path:</label>
         	<cfif server.os.name contains "Windows">
         		<cfset placeholder = "c:\my\code\">
         	<cfelse>
@@ -28,7 +28,7 @@
 
       
       
-    	<div class="form-group">
+    	<div class="mb-3">
     		<input type="submit" class="btn btn-outline-secondary" value="Save Project">
     	</div>
     </form>

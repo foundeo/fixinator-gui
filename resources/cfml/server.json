@@ -1,9 +1,9 @@
 {
     "name":"fixinator-gui",
     "openBrowser":false,
-    "trayEnable": false,
+    "trayEnable":false,
     "jvm":{
-        "heapSize":256,
+        "heapSize":512,
         "minHeapSize":128
     },
     "web":{
@@ -16,6 +16,10 @@
         "rewrites":{
             "enable":"true",
             "config":"rewrites.xml"
+        },
+        "allowedExt":"js,css,png,mjs",
+        "mimeTypes": {
+            "mjs":"text/javascript"
         }
     }
 }
