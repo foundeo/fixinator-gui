@@ -1,6 +1,6 @@
 {
     "name": "Fixinator",
-    "version": "6.1.1",
+    "version": "6.1.2",
     "description": "Fixinator GUI App",
     "main": "index.js",
     "scripts": {
